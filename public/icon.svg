@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="pwaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="104" fill="url(#pwaGrad)" />
+  
+  <!-- Store Front Icon -->
+  <g filter="url(#shadow)" transform="translate(64, 72)">
+    <!-- Roof / Canopy -->
+    <path d="M192 36 L32 108 L48 144 L336 144 L352 108 Z" fill="#F59E0B" />
+    <path d="M72 144 C72 164 92 180 116 180 C140 180 160 164 160 144" fill="#D97706" />
+    <path d="M160 144 C160 164 180 180 204 180 C228 180 248 164 248 144" fill="#F59E0B" />
+    <path d="M248 144 C248 164 268 180 292 180 C316 180 336 164 336 144" fill="#D97706" />
+    <path d="M48 144 C48 164 64 180 88 180 C100 180 108 174 116 164" fill="#F59E0B" opacity="0.5" />
+    
+    <!-- Store Pillars & Wall -->
+    <rect x="64" y="180" width="256" height="156" rx="12" fill="#FFFFFF" />
+    <rect x="96" y="216" width="76" height="88" rx="8" fill="#10B981" fill-opacity="0.2" stroke="#059669" stroke-width="6" />
+    <line x1="134" y1="216" x2="134" y2="304" stroke="#059669" stroke-width="4" />
+    <line x1="96" y1="260" x2="172" y2="260" stroke="#059669" stroke-width="4" />
+
+    <!-- Doorway -->
+    <rect x="204" y="216" width="80" height="120" rx="6" fill="#047857" />
+    <circle cx="266" cy="276" r="6" fill="#F59E0B" />
+    
+    <!-- Signboard text badge -->
+    <rect x="120" y="70" width="144" height="42" rx="8" fill="#FFFFFF" />
+    <text x="192" y="98" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="20" fill="#065F46" letter-spacing="1">PULPERÍA</text>
+  </g>
+</svg>
