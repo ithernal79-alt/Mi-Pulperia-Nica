@@ -12,7 +12,6 @@ import { InventoryModule } from './components/inventory/InventoryModule';
 import { CategoriesModule } from './components/categories/CategoriesModule';
 import { AlertsModule } from './components/alerts/AlertsModule';
 import { CreditModule } from './components/credit/CreditModule';
-import { ReportsModule } from './components/reports/ReportsModule';
 import { ReceiptModal } from './components/modals/ReceiptModal';
 import { BackupModal } from './components/modals/BackupModal';
 import { OfflineIndicator } from './components/pwa/OfflineIndicator';
@@ -167,18 +166,6 @@ export default function App() {
         {activeTab === 'fiados' && (
           <CreditModule
             clientes={clientes}
-            ventas={ventas}
-            movimientos={movimientos}
-            config={config}
-            onRefresh={refreshData}
-            audioEnabled={audioEnabled}
-            onShowReceipt={(receipt) => setActiveReceipt(receipt)}
-          />
-        )}
-
-        {/* MÓDULO 5: CORTE DE CAJA & REPORTES */}
-        {activeTab === 'reportes' && (
-          <ReportsModule
             ventas={ventas}
             movimientos={movimientos}
             config={config}

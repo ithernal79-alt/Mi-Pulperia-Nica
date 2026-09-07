@@ -21,7 +21,7 @@ import {
 import { Producto, EntradaMercancia, ConfiguracionPulperia } from '../../types';
 import { db } from '../../services/db';
 import { audioSpeech } from '../../services/audioSpeech';
-import { LISTA_CATEGORIAS, CATEGORIA_COLORS } from '../../data/listaProductos';
+import { LISTA_CATEGORIAS, CATEGORIA_COLORS, CATEGORIA_EMOJIS } from '../../data/listaProductos';
 
 interface InventoryModuleProps {
   productos: Producto[];
@@ -78,7 +78,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
     marca: '',
   });
 
-  // Categorías completas garantizadas con las 26 oficiales + las registradas en BD
+  // Categorías completas garantizadas con las oficiales + las registradas en BD
   const categories = useMemo(() => {
     const fromProds = productos.map((p) => p.categoria).filter(Boolean);
     const combined = Array.from(new Set([...LISTA_CATEGORIAS, ...fromProds])).sort();
@@ -113,13 +113,13 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
 
   const handleRecargarListaProductos = () => {
     const confirmReset = window.confirm(
-      '¿Desea restaurar/recargar la lista oficial de 278 productos en la base de datos?'
+      '¿Desea restaurar/recargar la lista oficial de 412 productos en la base de datos?'
     );
     if (confirmReset) {
       db.recargarCatalogoBase();
       onRefresh();
       if (audioEnabled) {
-        audioSpeech.speak('Lista de 278 productos recargada');
+        audioSpeech.speak('Lista de 412 productos recargada');
       }
     }
   };
@@ -131,7 +131,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
       id: `prod-${Date.now().toString().slice(-6)}`,
       codigo_barras: `7421${Math.floor(1000 + Math.random() * 9000)}`,
       nombre: '',
-      categoria: 'Granos y Abarrotes',
+      categoria: 'Granos básicos',
       precio_venta: 0,
       precio_costo: 0,
       stock_actual: 0,
@@ -237,11 +237,11 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
           <button
             type="button"
             onClick={handleRecargarListaProductos}
-            title="Recargar o restaurar la lista oficial de 278 productos"
+            title="Recargar o restaurar la lista oficial de 412 productos"
             className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all select-none border border-slate-300"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-            <span className="hidden sm:inline">Restaurar Catálogo (278)</span>
+            <span className="hidden sm:inline">Restaurar Catálogo (412)</span>
             <span className="sm:hidden">Catálogo</span>
           </button>
 
@@ -306,7 +306,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
         </div>
       </div>
 
-      {/* Chips Rápidos de Categorías (Todas las 26 Categorías) */}
+      {/* Chips Rápidos de Categorías */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 text-xs scrollbar-thin">
         {categories.map((cat) => {
           const count = cat === 'Todos' 
@@ -327,6 +327,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
                   : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
               }`}
             >
+              <span>{cat === 'Todos' ? '📦' : CATEGORIA_EMOJIS[cat] || '🏷️'}</span>
               <span>{cat}</span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                 isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'

@@ -15,7 +15,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Producto, ConfiguracionPulperia } from '../../types';
-import { LISTA_CATEGORIAS, CATEGORIA_COLORS } from '../../data/listaProductos';
+import { LISTA_CATEGORIAS, CATEGORIA_COLORS, CATEGORIA_EMOJIS } from '../../data/listaProductos';
 import { db } from '../../services/db';
 
 interface CategoriesModuleProps {
@@ -27,36 +27,6 @@ interface CategoriesModuleProps {
   onRefresh: () => void;
   audioEnabled?: boolean;
 }
-
-// Iconos temáticos o emojis representativos por categoría
-const CATEGORIA_EMOJIS: Record<string, string> = {
-  'Granos básicos': '🌾',
-  'Pastas y sopas': '🍜',
-  'Enlatados y conservas': '🥫',
-  'Salsas y condimentos': '🧂',
-  'Aceites y grasas': '🫒',
-  'Lácteos y huevos': '🥛',
-  'Panadería': '🍞',
-  'Galletas y snacks': '🍪',
-  'Bebidas': '🥤',
-  'Agua': '💧',
-  'Café y té': '☕',
-  'Embutidos y carnes': '🥩',
-  'Frutas y verduras': '🥦',
-  'Limpieza de ropa': '🧺',
-  'Limpieza del hogar': '🧹',
-  'Papel y desechables': '🧻',
-  'Higiene personal': '🧼',
-  'Bebés': '👶',
-  'Mascotas': '🐾',
-  'Primeros auxilios': '🩹',
-  'Control de plagas': '🦟',
-  'Ferretería básica': '🔨',
-  'Papelería': '✏️',
-  'Tecnología': '🔌',
-  'Productos nicaragüenses': '🇳🇮',
-  'Servicios': '⚡',
-};
 
 export const CategoriesModule: React.FC<CategoriesModuleProps> = ({
   productos,
@@ -70,7 +40,7 @@ export const CategoriesModule: React.FC<CategoriesModuleProps> = ({
 
   // Agrupación de productos por categoría
   const categoryStats = useMemo(() => {
-    // Tomar la lista canónica de 26 categorías más cualquier otra existente en productos
+    // Tomar la lista canónica de categorías oficiales más cualquier otra existente en productos
     const allCategoryNames = Array.from(new Set([...LISTA_CATEGORIAS, ...productos.map(p => p.categoria)]));
 
     return allCategoryNames.map((catName) => {
@@ -114,7 +84,7 @@ export const CategoriesModule: React.FC<CategoriesModuleProps> = ({
   const totalValorGlobal = productos.reduce((sum, p) => sum + (p.stock_actual * p.precio_venta), 0);
 
   const handleRestaurar = () => {
-    if (window.confirm('¿Deseas restaurar la lista oficial de 278 productos y 26 categorías?')) {
+    if (window.confirm('¿Deseas restaurar la lista oficial de 412 productos y 37 categorías?')) {
       db.recargarCatalogoBase();
       onRefresh();
     }
@@ -142,11 +112,11 @@ export const CategoriesModule: React.FC<CategoriesModuleProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleRestaurar}
-              title="Restaurar las 26 categorías y 278 productos"
+              title="Restaurar las 37 categorías y 412 productos"
               className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-              <span>Restaurar Catálogo (278)</span>
+              <span>Restaurar Catálogo (412)</span>
             </button>
 
             {onNavigateToInventory && (
@@ -209,7 +179,7 @@ export const CategoriesModule: React.FC<CategoriesModuleProps> = ({
         </div>
       </div>
 
-      {/* 2. GRID DE LAS 26 CATEGORÍAS */}
+      {/* 2. GRID DE LAS CATEGORÍAS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {filteredCategories.map((cat) => {
           const isExpanded = expandedCategory === cat.nombre;

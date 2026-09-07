@@ -6,10 +6,10 @@ import {
   Layers,
   AlertTriangle, 
   Users, 
-  Calculator,
   Mic
 } from 'lucide-react';
 import { ActiveTab } from '../types';
+import { LISTA_CATEGORIAS } from '../data/listaProductos';
 import { LiveClock } from './common/LiveClock';
 
 interface NavigationProps {
@@ -48,10 +48,10 @@ export const Navigation: React.FC<NavigationProps> = ({
     },
     {
       id: 'categorias' as ActiveTab,
-      label: 'Categorías (26)',
+      label: `Categorías (${LISTA_CATEGORIAS.length})`,
       shortLabel: 'Categorías',
       icon: Layers,
-      count: 26,
+      count: LISTA_CATEGORIAS.length,
       countColor: 'bg-amber-600 text-white',
     },
     {
@@ -69,12 +69,6 @@ export const Navigation: React.FC<NavigationProps> = ({
       icon: Users,
       count: fiadosCount,
       countColor: 'bg-blue-600 text-white',
-    },
-    {
-      id: 'reportes' as ActiveTab,
-      label: 'Corte de Caja',
-      shortLabel: 'Caja',
-      icon: Calculator,
     },
   ];
 

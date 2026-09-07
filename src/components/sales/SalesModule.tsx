@@ -23,7 +23,7 @@ import { parseVoiceOrder } from '../../services/voiceParser';
 import { audioSpeech } from '../../services/audioSpeech';
 import { db } from '../../services/db';
 import { LiveClock } from '../common/LiveClock';
-import { LISTA_CATEGORIAS, CATEGORIA_COLORS } from '../../data/listaProductos';
+import { LISTA_CATEGORIAS, CATEGORIA_COLORS, CATEGORIA_EMOJIS } from '../../data/listaProductos';
 
 interface SalesModuleProps {
   productos: Producto[];
@@ -64,7 +64,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
   const [voiceParsedSuggestions, setVoiceParsedSuggestions] = useState<any[]>([]);
 
-  // Categorías de productos completas (26 oficiales + personalizadas)
+  // Categorías de productos completas (oficiales + personalizadas)
   const categories = useMemo(() => {
     const fromProds = productos.map((p) => p.categoria).filter(Boolean);
     const combined = Array.from(new Set([...LISTA_CATEGORIAS, ...fromProds])).sort();
@@ -473,6 +473,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
                       : 'bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 border border-slate-200'
                   }`}
                 >
+                  <span>{cat === 'Todos' ? '🏪' : cat === 'Frecuentes' ? '⭐' : CATEGORIA_EMOJIS[cat] || '📦'}</span>
                   <span>{cat}</span>
                   <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
                     isSelected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'

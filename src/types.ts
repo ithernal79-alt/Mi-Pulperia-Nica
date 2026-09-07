@@ -26,7 +26,7 @@ export interface Cliente {
   ultimo_movimiento?: string;
 }
 
-export type ActiveTab = 'dashboard' | 'ventas' | 'inventario' | 'categorias' | 'alertas' | 'fiados' | 'reportes';
+export type ActiveTab = 'dashboard' | 'ventas' | 'inventario' | 'categorias' | 'alertas' | 'fiados';
 
 export interface DetalleVenta {
   id: string;

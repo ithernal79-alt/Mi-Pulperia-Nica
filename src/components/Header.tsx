@@ -135,7 +135,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <p className="font-bold text-white">Sistema Integral para Pulperías y Tiendas de Barrio</p>
               <p className="text-slate-300 mt-0.5">
-                Usa la <strong>Bomba de Voz</strong> para decir comandos en lenguaje natural como: <em>"Dos tarros de leche y una libra de arroz"</em>. El sistema descuenta stock, gestiona fiados y realiza el arqueo de caja automáticamente.
+                Usa la <strong>Bomba de Voz</strong> para decir comandos en lenguaje natural como: <em>"Dos tarros de leche y una libra de arroz"</em>. El sistema descuenta stock y gestiona fiados automáticamente.
               </p>
             </div>
           </div>

@@ -21,8 +21,8 @@ export default defineConfig(() => {
         manifest: {
           id: '/',
           name: 'Pulpería POS - Sistema de Inventario',
-          short_name: 'Pulpería',
-          description: 'Sistema táctil de punto de venta, inventario, control de fiados y caja para pulperías y tiendas locales sin necesidad de internet.',
+          short_name: 'Pulpería YESENIA',
+          description: 'Sistema táctil de punto de venta, inventario y control de fiados para pulperías y tiendas locales sin necesidad de internet.',
           theme_color: '#059669',
           background_color: '#F8FAFC',
           display: 'standalone',

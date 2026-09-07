@@ -25,7 +25,7 @@ const STORAGE_KEYS = {
   CONFIG: 'pulperia_db_v2_config',
 };
 
-const CATALOG_VERSION = 'v3_278_productos';
+const CATALOG_VERSION = 'v4_37_categorias_412_productos';
 const VERSION_KEY = 'pulperia_catalogo_ver';
 
 class LocalDBService {
@@ -100,6 +100,10 @@ class LocalDBService {
 
   recargarCatalogoBase(): void {
     this.setStorage(STORAGE_KEYS.PRODUCTOS, INITIAL_PRODUCTOS);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(VERSION_KEY, CATALOG_VERSION);
+    }
+    window.dispatchEvent(new Event('pulperia_db_updated'));
   }
 
   getProductoById(id: string): Producto | undefined {
