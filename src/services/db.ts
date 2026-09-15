@@ -131,6 +131,18 @@ class LocalDBService {
     this.setStorage(STORAGE_KEYS.PRODUCTOS, productos);
   }
 
+  updateProductoStock(id: string, nuevoStock: number): void {
+    const productos = this.getProductos();
+    const idx = productos.findIndex(p => p.id === id);
+    if (idx >= 0) {
+      productos[idx] = {
+        ...productos[idx],
+        stock_actual: Math.max(0, nuevoStock),
+      };
+      this.setStorage(STORAGE_KEYS.PRODUCTOS, productos);
+    }
+  }
+
   // --- ENTRADA DE MERCANCÍA / COMPRAS PROVEEDORES ---
   getEntradas(): EntradaMercancia[] {
     return this.getStorage<EntradaMercancia[]>(STORAGE_KEYS.ENTRADAS, []);

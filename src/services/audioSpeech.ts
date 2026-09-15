@@ -9,8 +9,29 @@ class AudioSpeechService {
   private isListening = false;
   private audioCtx: AudioContext | null = null;
 
+  private isOnlineStatus: boolean = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
   constructor() {
     this.initRecognition();
+    this.initNetworkListeners();
+  }
+
+  private initNetworkListeners() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        this.isOnlineStatus = true;
+      });
+      window.addEventListener('offline', () => {
+        this.isOnlineStatus = false;
+      });
+    }
+  }
+
+  public isOnline(): boolean {
+    if (typeof navigator !== 'undefined') {
+      return navigator.onLine;
+    }
+    return this.isOnlineStatus;
   }
 
   private initRecognition() {
@@ -72,7 +93,15 @@ class AudioSpeechService {
     this.recognition.onerror = (event: any) => {
       console.warn('Speech recognition error:', event.error);
       this.isListening = false;
-      onError(event.error === 'not-allowed' ? 'Permiso de micrófono denegado' : 'Error en escucha');
+      if (event.error === 'network' || !this.isOnline()) {
+        onError('SIN_INTERNET');
+      } else if (event.error === 'not-allowed') {
+        onError('Permiso de micrófono denegado. Permite el acceso en el navegador.');
+      } else if (event.error === 'no-speech') {
+        onError('No se detectó voz. Intenta hablar más cerca del micrófono.');
+      } else {
+        onError('Error en reconocimiento de voz. Intenta de nuevo.');
+      }
     };
 
     this.recognition.onend = () => {

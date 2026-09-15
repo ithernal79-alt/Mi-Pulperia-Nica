@@ -16,7 +16,11 @@ import {
   Volume2,
   X,
   RotateCcw,
-  Package
+  Package,
+  Camera,
+  WifiOff,
+  HelpCircle,
+  Zap
 } from 'lucide-react';
 import { Producto, Cliente, CartItem, Venta, ConfiguracionPulperia } from '../../types';
 import { parseVoiceOrder } from '../../services/voiceParser';
@@ -24,6 +28,8 @@ import { audioSpeech } from '../../services/audioSpeech';
 import { db } from '../../services/db';
 import { LiveClock } from '../common/LiveClock';
 import { LISTA_CATEGORIAS, CATEGORIA_COLORS, CATEGORIA_EMOJIS } from '../../data/listaProductos';
+import { CameraBarcodeScanner } from '../common/CameraBarcodeScanner';
+import { OneTouchKeypad } from './OneTouchKeypad';
 
 interface SalesModuleProps {
   productos: Producto[];
@@ -63,6 +69,9 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
   const [voiceParsedSuggestions, setVoiceParsedSuggestions] = useState<any[]>([]);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const [showOfflineHelp, setShowOfflineHelp] = useState(false);
+  const [showKeypad, setShowKeypad] = useState(true);
 
   // Categorías de productos completas (oficiales + personalizadas)
   const categories = useMemo(() => {
@@ -237,7 +246,14 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
         }
       },
       (err) => {
-        setVoiceStatus(`Aviso: ${err}. Puedes usar los botones de voz rápida abajo.`);
+        if (err === 'SIN_INTERNET' || !audioSpeech.isOnline()) {
+          setVoiceStatus(
+            '📡 Sin internet: El reconocimiento web necesita conexión. Usa la Botonera Táctil de 1 Toque o el dictado de tu teclado Android (Gboard funciona sin red).'
+          );
+          setShowOfflineHelp(true);
+        } else {
+          setVoiceStatus(`Aviso: ${err}. Puedes usar la botonera táctil o las frases rápidas.`);
+        }
         setIsListening(false);
       },
       () => {
@@ -379,17 +395,42 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
 
         {/* Feedback Alert if any */}
         {voiceStatus && (
-          <div className="mt-3 text-xs bg-emerald-900/80 border border-emerald-500/40 p-2.5 rounded-xl text-white flex items-center justify-between">
-            <span>{voiceStatus}</span>
-            <button onClick={() => setVoiceStatus(null)} className="text-emerald-200 hover:text-white p-0.5">
-              <X className="w-3.5 h-3.5" />
-            </button>
+          <div className="mt-3 text-xs bg-emerald-900/90 border border-emerald-500/40 p-3 rounded-2xl text-white space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">{voiceStatus}</span>
+              <button onClick={() => setVoiceStatus(null)} className="text-emerald-200 hover:text-white p-0.5">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            {showOfflineHelp && (
+              <div className="pt-2 border-t border-emerald-500/30 text-[11px] text-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <span>💡 <strong>Tip Sin Internet:</strong> Puedes usar la <strong>Botonera Táctil de 1 Toque</strong> abajo, o descargar el paquete de voz offline de Google Gboard en tu teléfono Android (Ajustes ➡️ Gboard ➡️ Dictado por voz sin conexión).</span>
+                <button
+                  onClick={() => setShowOfflineHelp(false)}
+                  className="px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white font-bold shrink-0"
+                >
+                  Entendido
+                </button>
+              </div>
+            )}
           </div>
         )}
       </section>
 
       {/* ========================================================
-          2. SECCIÓN PRINCIPAL: BOTONERA TÁCTIL + CARRITO
+          BOTONERA TÁCTIL DE 1 TOQUE (100% OFFLINE / ULTRA RÁPIDO)
+      ======================================================== */}
+      {showKeypad && (
+        <OneTouchKeypad
+          productos={productos}
+          onAddToCart={addToCart}
+          monedaSimbolo={config.moneda_simbolo}
+          audioEnabled={audioEnabled}
+        />
+      )}
+
+      {/* ========================================================
+          2. SECCIÓN PRINCIPAL: CATÁLOGO TÁCTIL + CARRITO
       ======================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
@@ -439,17 +480,14 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
               })}
             </select>
 
+            {/* Botón Escanear con Cámara */}
             <button
-              onClick={() => {
-                // Simular escaneo de código de barras rápido
-                const random = productos[Math.floor(Math.random() * productos.length)];
-                if (random) addToCart(random, 1);
-              }}
-              title="Simular escáner de código de barras"
-              className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl border border-slate-200 flex items-center gap-1.5 text-xs font-semibold shrink-0 transition-colors"
+              onClick={() => setShowCameraScanner(true)}
+              title="Escanear código de barras con la cámara del dispositivo"
+              className="px-3 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl flex items-center gap-1.5 text-xs font-bold shrink-0 transition-colors shadow-xs"
             >
-              <Barcode className="w-4 h-4 text-emerald-600" />
-              <span className="hidden sm:inline">Escanear</span>
+              <Camera className="w-4 h-4 text-emerald-600" />
+              <span className="hidden sm:inline">Cámara</span>
             </button>
           </div>
 
@@ -820,6 +858,18 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
         </div>
 
       </div>
+
+      {/* Modal de Escaneo con Cámara */}
+      <CameraBarcodeScanner
+        isOpen={showCameraScanner}
+        onClose={() => setShowCameraScanner(false)}
+        productos={productos}
+        onProductScanned={(prod, qty = 1) => {
+          addToCart(prod, qty);
+        }}
+        title="Escanear Producto para Venta"
+        subtitle="Apunta la cámara al código de barras para agregarlo al carrito"
+      />
     </div>
   );
 };

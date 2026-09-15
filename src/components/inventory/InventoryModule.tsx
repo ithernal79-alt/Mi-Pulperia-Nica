@@ -16,12 +16,16 @@ import {
   Layers,
   RotateCcw,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Camera,
+  Mic
 } from 'lucide-react';
 import { Producto, EntradaMercancia, ConfiguracionPulperia } from '../../types';
 import { db } from '../../services/db';
 import { audioSpeech } from '../../services/audioSpeech';
 import { LISTA_CATEGORIAS, CATEGORIA_COLORS, CATEGORIA_EMOJIS } from '../../data/listaProductos';
+import { CameraBarcodeScanner } from '../common/CameraBarcodeScanner';
+import { InventoryVoiceModal } from './InventoryVoiceModal';
 
 interface InventoryModuleProps {
   productos: Producto[];
@@ -42,6 +46,8 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
   const [categoryFilter, setCategoryFilter] = useState(initialCategory || 'Todos');
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showEntradaModal, setShowEntradaModal] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
@@ -122,6 +128,72 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
         audioSpeech.speak('Lista de 412 productos recargada');
       }
     }
+  };
+
+  // Ajuste rápido de stock directo en tabla (+ / -)
+  const handleInlineStockChange = (prodId: string, newStock: number) => {
+    db.updateProductoStock(prodId, Math.max(0, newStock));
+    if (audioEnabled) audioSpeech.playBeep(920, 0.04);
+    onRefresh();
+  };
+
+  // Al escanear con la cámara un producto que ya existe
+  const handleCameraProductScanned = (prod: Producto, cantidadToAdd = 1) => {
+    const nuevoStock = prod.stock_actual + cantidadToAdd;
+    db.updateProductoStock(prod.id, nuevoStock);
+    db.registrarEntradaMercancia({
+      proveedor: 'Escáner de Cámara',
+      numero_factura: `CAM-${Date.now().toString().slice(-4)}`,
+      producto_id: prod.id,
+      producto_nombre: prod.nombre,
+      cantidad_ingresada: cantidadToAdd,
+      costo_unitario: prod.precio_costo,
+      total_costo: cantidadToAdd * prod.precio_costo,
+      nota: `Entrada rápida por escáner de cámara (+${cantidadToAdd})`,
+    });
+    if (audioEnabled) {
+      audioSpeech.playSuccessSound();
+      audioSpeech.speak(`Sumadas ${cantidadToAdd} unidades a ${prod.nombre}`);
+    }
+    onRefresh();
+  };
+
+  // Al escanear con la cámara un código de barras nuevo
+  const handleCameraNewBarcodeScanned = (barcode: string) => {
+    setEditingProduct(null);
+    setProductForm({
+      id: `prod-${Date.now().toString().slice(-6)}`,
+      codigo_barras: barcode,
+      nombre: '',
+      categoria: 'Granos básicos',
+      precio_venta: 0,
+      precio_costo: 0,
+      stock_actual: 10,
+      stock_minimo: 5,
+      unidad_medida: 'unidad',
+      es_frecuente: true,
+      color_tag: '#10B981',
+    });
+    setShowNewProductModal(true);
+  };
+
+  // Al dictar por voz un nuevo producto
+  const handleVoiceOpenNewProductWithData = (data: Partial<Producto>) => {
+    setEditingProduct(null);
+    setProductForm({
+      id: `prod-${Date.now().toString().slice(-6)}`,
+      codigo_barras: `7421${Math.floor(1000 + Math.random() * 9000)}`,
+      nombre: data.nombre || '',
+      categoria: data.categoria || 'Granos básicos',
+      precio_venta: data.precio_venta || 0,
+      precio_costo: data.precio_costo || 0,
+      stock_actual: data.stock_actual || 10,
+      stock_minimo: 5,
+      unidad_medida: data.unidad_medida || 'unidad',
+      es_frecuente: true,
+      color_tag: '#10B981',
+    });
+    setShowNewProductModal(true);
   };
 
   // Abrir modal de nuevo producto
@@ -233,16 +305,26 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Botón Restaurar Catálogo Base */}
+          {/* Botón Escanear con Cámara */}
           <button
             type="button"
-            onClick={handleRecargarListaProductos}
-            title="Recargar o restaurar la lista oficial de 412 productos"
-            className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all select-none border border-slate-300"
+            onClick={() => setShowCameraScanner(true)}
+            title="Escanear código de barras con la cámara para ingresar o buscar productos"
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all select-none"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-            <span className="hidden sm:inline">Restaurar Catálogo (412)</span>
-            <span className="sm:hidden">Catálogo</span>
+            <Camera className="w-4 h-4" />
+            <span>Escanear Código</span>
+          </button>
+
+          {/* Botón Dictar por Voz */}
+          <button
+            type="button"
+            onClick={() => setShowVoiceModal(true)}
+            title="Ingreso rápido de existencias y nuevos productos por voz o dictado"
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all select-none"
+          >
+            <Mic className="w-4 h-4" />
+            <span>Dictar por Voz</span>
           </button>
 
           {/* Botón Entrada de Mercancía */}
@@ -251,7 +333,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
             className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all select-none"
           >
             <Truck className="w-4 h-4" />
-            <span>Entrada de Mercancía</span>
+            <span>Entrada Factura</span>
           </button>
 
           {/* Botón Nuevo Producto */}
@@ -261,6 +343,17 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
           >
             <Plus className="w-4 h-4" />
             <span>Nuevo Producto</span>
+          </button>
+
+          {/* Botón Restaurar Catálogo Base */}
+          <button
+            type="button"
+            onClick={handleRecargarListaProductos}
+            title="Recargar o restaurar la lista oficial de 412 productos"
+            className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-all select-none border border-slate-300"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
+            <span className="hidden sm:inline">Restaurar (412)</span>
           </button>
         </div>
       </div>
@@ -419,16 +512,35 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
 
                     {/* Stock Actual */}
                     <td className="py-3 px-3 sm:px-4 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono font-bold text-xs ${
-                        isZero
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                          : isCritical
-                          ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                          : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      }`}>
-                        {isCritical && <AlertTriangle className="w-3 h-3 text-amber-600 animate-pulse" />}
-                        {p.stock_actual} {p.unidad_medida}s
-                      </span>
+                      <div className="inline-flex items-center justify-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleInlineStockChange(p.id, p.stock_actual - 1)}
+                          disabled={p.stock_actual <= 0}
+                          className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          title="Restar 1 al stock"
+                        >
+                          -
+                        </button>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-mono font-bold text-xs ${
+                          isZero
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                            : isCritical
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        }`}>
+                          {isCritical && <AlertTriangle className="w-3 h-3 text-amber-600 animate-pulse" />}
+                          {p.stock_actual} {p.unidad_medida}s
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleInlineStockChange(p.id, p.stock_actual + 1)}
+                          className="w-6 h-6 rounded-lg bg-emerald-100 hover:bg-emerald-200 active:bg-emerald-300 text-emerald-800 font-bold text-xs flex items-center justify-center transition-all"
+                          title="Sumar 1 al stock"
+                        >
+                          +
+                        </button>
+                      </div>
                     </td>
 
                     {/* Stock Mínimo */}
@@ -691,7 +803,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="Ej. Arroz Blanco 1 Libra, Tarro de Leche..."
+                  placeholder="Ej. Arroz Faizan 1 Libra, Frojoles Rojo 1 Libra..."
                   value={productForm.nombre}
                   onChange={(e) => setProductForm({ ...productForm, nombre: e.target.value })}
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-emerald-500 shadow-xs"
@@ -839,6 +951,26 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Escaneo con Cámara de Código de Barras */}
+      <CameraBarcodeScanner
+        isOpen={showCameraScanner}
+        onClose={() => setShowCameraScanner(false)}
+        productos={productos}
+        onProductScanned={handleCameraProductScanned}
+        onNewBarcodeScanned={handleCameraNewBarcodeScanned}
+        title="Escanear Código de Barras de Producto"
+        subtitle="Apunta la cámara al producto. Si ya existe, puedes sumar stock; si es nuevo, se agregará al catálogo."
+      />
+
+      {/* Modal de Ingreso Rápido por Voz (Dictado) */}
+      <InventoryVoiceModal
+        isOpen={showVoiceModal}
+        onClose={() => setShowVoiceModal(false)}
+        productos={productos}
+        onSuccess={onRefresh}
+        onOpenNewProductWithData={handleVoiceOpenNewProductWithData}
+      />
 
     </div>
   );

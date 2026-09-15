@@ -94,13 +94,8 @@ export const LISTA_CATEGORIAS: string[] = Object.keys(CATEGORIA_COLORS);
 const RAW_PRODUCTOS: RawItem[] = [
   // 1. Granos básicos
   { categoria: 'Granos básicos', nombre: 'Arroz Faisan (libra)', unidad_medida: 'libra', precio_venta: 22.00, precio_costo: 18.00, es_frecuente: true },
-  { categoria: 'Granos básicos', nombre: 'Arroz Faisan (quintal)', unidad_medida: 'quintal', precio_venta: 1950.00, precio_costo: 1750.00 },
   { categoria: 'Granos básicos', nombre: 'Frijol rojo (libra)', unidad_medida: 'libra', precio_venta: 34.00, precio_costo: 28.00, es_frecuente: true },
-  { categoria: 'Granos básicos', nombre: 'Frijol rojo (quintal)', unidad_medida: 'quintal', precio_venta: 2900.00, precio_costo: 2600.00 },
-  { categoria: 'Granos básicos', nombre: 'Maíz (libra)', unidad_medida: 'libra', precio_venta: 12.00, precio_costo: 9.00, es_frecuente: true },
-  { categoria: 'Granos básicos', nombre: 'Maíz (quintal)', unidad_medida: 'quintal', precio_venta: 1100.00, precio_costo: 920.00 },
   { categoria: 'Granos básicos', nombre: 'Arroz Maria (libra)', unidad_medida: 'libra', precio_venta: 20.00, precio_costo: 16.50, es_frecuente: true },
-  { categoria: 'Granos básicos', nombre: 'Arroz Maria (quintal)', unidad_medida: 'quintal', precio_venta: 1800.00, precio_costo: 1600.00 },
   { categoria: 'Granos básicos', nombre: 'Avena Molida Sasa', unidad_medida: 'bolsa', precio_venta: 18.00, precio_costo: 14.00, es_frecuente: true },
   { categoria: 'Granos básicos', nombre: 'Avena Granulada Quaker', unidad_medida: 'bolsa', precio_venta: 26.00, precio_costo: 20.50, es_frecuente: true },
   { categoria: 'Granos básicos', nombre: 'Cebada', unidad_medida: 'bolsa', precio_venta: 16.00, precio_costo: 12.00 },
@@ -118,9 +113,7 @@ const RAW_PRODUCTOS: RawItem[] = [
 
   // 3. Azúcar, sal y endulzantes
   { categoria: 'Azúcar, sal y endulzantes', nombre: 'Azúcar blanca (libra)', unidad_medida: 'libra', precio_venta: 16.00, precio_costo: 12.50, es_frecuente: true },
-  { categoria: 'Azúcar, sal y endulzantes', nombre: 'Azúcar blanca (quintal)', unidad_medida: 'quintal', precio_venta: 1450.00, precio_costo: 1300.00 },
   { categoria: 'Azúcar, sal y endulzantes', nombre: 'Azúcar morena (libra)', unidad_medida: 'libra', precio_venta: 15.00, precio_costo: 11.50, es_frecuente: true },
-  { categoria: 'Azúcar, sal y endulzantes', nombre: 'Azúcar morena (quintal)', unidad_medida: 'quintal', precio_venta: 1380.00, precio_costo: 1240.00 },
   { categoria: 'Azúcar, sal y endulzantes', nombre: 'Azúcar sulfitada', unidad_medida: 'libra', precio_venta: 15.50, precio_costo: 12.00 },
   { categoria: 'Azúcar, sal y endulzantes', nombre: 'Azúcar refinada', unidad_medida: 'libra', precio_venta: 18.00, precio_costo: 14.00 },
   { categoria: 'Azúcar, sal y endulzantes', nombre: 'Azúcar en sobres', unidad_medida: 'caja', precio_venta: 45.00, precio_costo: 34.00 },
