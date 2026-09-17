@@ -17,7 +17,12 @@ import {
   BarChart3,
   Layers,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet,
+  Download,
+  TableProperties,
+  Award,
+  FileCheck
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -36,6 +41,8 @@ import {
 } from 'recharts';
 import { Producto, Cliente, Venta, MovimientoCaja, ConfiguracionPulperia } from '../../types';
 import { LiveClock } from '../common/LiveClock';
+import { exportFinancialReportToExcel, exportSalesToCSV } from '../../utils/excelExport';
+import { CertifiedFinancialStatement } from './CertifiedFinancialStatement';
 
 interface DashboardModuleProps {
   ventas: Venta[];
@@ -49,6 +56,7 @@ interface DashboardModuleProps {
 }
 
 type PeriodFilter = 'hoy' | '7d' | '30d' | 'todo';
+type DashboardViewMode = 'contador_certificado' | 'graficos_kpi';
 
 export const DashboardModule: React.FC<DashboardModuleProps> = ({
   ventas,
@@ -61,6 +69,7 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
   onNavigateToCredit
 }) => {
   const [period, setPeriod] = useState<PeriodFilter>('7d');
+  const [viewMode, setViewMode] = useState<DashboardViewMode>('contador_certificado');
   const printRef = useRef<HTMLDivElement>(null);
 
   // Formateador de moneda en Córdobas Nicaragüenses (C$)
@@ -279,6 +288,44 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
     window.print();
   };
 
+  // Etiqueta legible del período
+  const periodLabelText = useMemo(() => {
+    switch (period) {
+      case 'hoy': return 'Hoy';
+      case '7d': return 'Últimos 7 Días';
+      case '30d': return 'Últimos 30 Días';
+      case 'todo': return 'Histórico Completo';
+      default: return 'Período';
+    }
+  }, [period]);
+
+  // Exportar a Excel (.xls profesional con tablas, formato numérico y secciones)
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const handleExportExcel = () => {
+    setIsExportingExcel(true);
+    try {
+      exportFinancialReportToExcel({
+        config,
+        periodLabel: periodLabelText,
+        stats,
+        ventas: filteredVentas,
+        clientes,
+        productos,
+        categoryData,
+        topProductsData,
+      });
+    } catch (e) {
+      console.error('Error exportando a Excel:', e);
+    } finally {
+      setTimeout(() => setIsExportingExcel(false), 1000);
+    }
+  };
+
+  // Exportar CSV
+  const handleExportCSV = () => {
+    exportSalesToCSV(filteredVentas, config, periodLabelText);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       
@@ -350,6 +397,42 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
             </button>
           </div>
 
+          {/* Selector de Modo de Vista: Contador Certificado vs Métricas Gráficas */}
+          <div className="bg-emerald-950/10 p-1 rounded-xl flex items-center border border-emerald-600/30 text-xs font-bold">
+            <button
+              onClick={() => setViewMode('contador_certificado')}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                viewMode === 'contador_certificado'
+                  ? 'bg-emerald-700 text-white shadow-xs font-black'
+                  : 'text-emerald-900 hover:text-emerald-950 hover:bg-emerald-100/50'
+              }`}
+            >
+              <Award className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Tabla Contador Certificado</span>
+            </button>
+            <button
+              onClick={() => setViewMode('graficos_kpi')}
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
+                viewMode === 'graficos_kpi'
+                  ? 'bg-white text-slate-900 shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              <span>Gráficos & KPIs</span>
+            </button>
+          </div>
+
+          <button
+            onClick={handleExportExcel}
+            disabled={isExportingExcel}
+            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+            title="Descargar informe completo en formato Excel (.xls compatible con Microsoft Excel y Google Sheets)"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+            <span>{isExportingExcel ? 'Generando...' : 'Exportar a Excel'}</span>
+          </button>
+
           <button
             onClick={handlePrint}
             className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all"
@@ -361,8 +444,23 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
         </div>
       </div>
 
-      {/* 2. TARJETAS KPI PRINCIPALES */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* 2. SI ESTÁ ACTIVO EL MODO CONTADOR CERTIFICADO, MOSTRAR LA TABLA PROFESIONAL CERTIFICADA */}
+      {viewMode === 'contador_certificado' ? (
+        <CertifiedFinancialStatement
+          config={config}
+          periodLabel={periodLabelText}
+          stats={stats}
+          ventas={filteredVentas}
+          clientes={clientes}
+          productos={productos}
+          categoryData={categoryData}
+          onExportExcel={handleExportExcel}
+          onPrint={handlePrint}
+        />
+      ) : (
+        <>
+          {/* 2. TARJETAS KPI PRINCIPALES */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         
         {/* KPI 1: Ventas Totales */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between hover:border-emerald-300 transition-colors">
@@ -815,6 +913,130 @@ export const DashboardModule: React.FC<DashboardModuleProps> = ({
         </div>
 
       </div>
+
+      {/* 6. TABLA DETALLADA DE TRANSACCIONES & EXPORTACIÓN EXCEL */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="font-extrabold text-sm sm:text-base text-slate-900 flex items-center gap-2">
+              <TableProperties className="w-4 h-4 text-emerald-600" />
+              <span>Libro Contable de Ventas ({periodLabelText})</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">
+                {filteredVentas.length} registros
+              </span>
+            </h3>
+            <p className="text-xs text-slate-500">
+              Historial detallado con desglose de monto, ganancia estimada y modalidad de cobro.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleExportExcel}
+              disabled={isExportingExcel}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-100" />
+              <span>{isExportingExcel ? 'Generando Excel...' : 'Descargar Tabla en Excel (.xls)'}</span>
+            </button>
+
+            <button
+              onClick={handleExportCSV}
+              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 border border-slate-200 shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="Descargar datos crudos en formato CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-slate-600" />
+              <span>CSV</span>
+            </button>
+          </div>
+        </div>
+
+        {filteredVentas.length === 0 ? (
+          <div className="py-10 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <TableProperties className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm font-bold text-slate-700">No hay ventas registradas en {periodLabelText.toLowerCase()}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Al registrar ventas en la pulpería aparecerán automáticamente en esta tabla y en la exportación de Excel.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-700 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                <tr>
+                  <th className="py-3 px-3 text-center">Folio</th>
+                  <th className="py-3 px-3">Fecha y Hora</th>
+                  <th className="py-3 px-3">Modalidad</th>
+                  <th className="py-3 px-3">Cliente</th>
+                  <th className="py-3 px-3 text-center">Artículos</th>
+                  <th className="py-3 px-3 text-right">Total ({config.moneda_simbolo})</th>
+                  <th className="py-3 px-3 text-right">Ganancia ({config.moneda_simbolo})</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {filteredVentas.slice(0, 50).map((v) => {
+                  const totalArticulos = v.items.reduce((acc, it) => acc + it.cantidad, 0);
+                  const isCredito = v.tipo === 'credito';
+                  return (
+                    <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-2.5 px-3 text-center font-mono text-[11px] text-slate-500 font-bold">
+                        #{v.id.substring(0, 6)}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 whitespace-nowrap">
+                        {v.fecha_hora}
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                            isCredito
+                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                          }`}
+                        >
+                          {isCredito ? 'Crédito (Fiado)' : 'Contado'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-900 font-bold">
+                        {v.cliente_nombre || (isCredito ? 'Cliente Fiador' : 'Cliente General')}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-600">
+                        {totalArticulos}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-black font-mono text-slate-900">
+                        {formatMoney(v.total)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-black font-mono text-emerald-700">
+                        {formatMoney(v.ganancia_estimada || 0)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-slate-100/80 font-black text-slate-900 border-t-2 border-slate-200">
+                <tr>
+                  <td colSpan={5} className="py-3 px-3 text-right text-xs uppercase tracking-wider">
+                    Totales del período ({filteredVentas.length} ventas):
+                  </td>
+                  <td className="py-3 px-3 text-right font-mono text-sm text-slate-900">
+                    {formatMoney(stats.totalVentas)}
+                  </td>
+                  <td className="py-3 px-3 text-right font-mono text-sm text-emerald-700">
+                    {formatMoney(stats.gananciaTotal)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {filteredVentas.length > 50 && (
+          <p className="text-[11px] text-slate-500 text-center">
+            Mostrando las 50 ventas más recientes en pantalla. Al presionar <strong>"Descargar Tabla en Excel"</strong> se exportan todas las {filteredVentas.length} ventas completas.
+          </p>
+        )}
+      </div>
+      </>
+      )}
 
     </div>
   );

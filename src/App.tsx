@@ -119,6 +119,7 @@ export default function App() {
             config={config}
             initialCategory={categoryFilter}
             onVentaCompletada={handleVentaCompletada}
+            onRefresh={refreshData}
             audioEnabled={audioEnabled}
           />
         )}

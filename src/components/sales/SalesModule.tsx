@@ -37,6 +37,7 @@ interface SalesModuleProps {
   config: ConfiguracionPulperia;
   initialCategory?: string;
   onVentaCompletada: (venta: Venta) => void;
+  onRefresh?: () => void;
   audioEnabled: boolean;
 }
 
@@ -46,6 +47,7 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
   config,
   initialCategory,
   onVentaCompletada,
+  onRefresh,
   audioEnabled,
 }) => {
   // Estado del Carrito
@@ -864,11 +866,16 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
         isOpen={showCameraScanner}
         onClose={() => setShowCameraScanner(false)}
         productos={productos}
+        mode="sales"
         onProductScanned={(prod, qty = 1) => {
           addToCart(prod, qty);
         }}
+        onBarcodeLinked={(updatedProd) => {
+          if (onRefresh) onRefresh();
+          addToCart(updatedProd, 1);
+        }}
         title="Escanear Producto para Venta"
-        subtitle="Apunta la cámara al código de barras para agregarlo al carrito"
+        subtitle="Apunta la cámara al código de barras para agregarlo de inmediato al carrito"
       />
     </div>
   );

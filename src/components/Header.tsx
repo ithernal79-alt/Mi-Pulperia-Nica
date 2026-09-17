@@ -12,6 +12,7 @@ import {
 import { ConfiguracionPulperia, Producto, Cliente } from '../types';
 import { LiveClock } from './common/LiveClock';
 import { PWAInstallButton } from './pwa/PWAInstallButton';
+import { CloudSyncBadge } from './common/CloudSyncBadge';
 
 interface HeaderProps {
   config: ConfiguracionPulperia;
@@ -105,6 +106,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Botón PWA para Instalar en Celular / Tablet */}
           <PWAInstallButton />
+
+          {/* Estado de Sincronización en la Nube Firebase */}
+          <CloudSyncBadge />
 
           {/* Backup Database */}
           <button

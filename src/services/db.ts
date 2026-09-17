@@ -15,6 +15,7 @@ import {
   INITIAL_MOVIMIENTOS,
   INITIAL_VENTAS
 } from '../data/initialData';
+import { cloudSync } from './cloudSync';
 
 const STORAGE_KEYS = {
   PRODUCTOS: 'pulperia_db_v2_productos',
@@ -124,6 +125,7 @@ class LocalDBService {
       productos.unshift(producto);
     }
     this.setStorage(STORAGE_KEYS.PRODUCTOS, productos);
+    cloudSync.enqueueProducto(producto);
   }
 
   deleteProducto(id: string): void {
@@ -140,7 +142,112 @@ class LocalDBService {
         stock_actual: Math.max(0, nuevoStock),
       };
       this.setStorage(STORAGE_KEYS.PRODUCTOS, productos);
+      cloudSync.enqueueProducto(productos[idx]);
     }
+  }
+
+  assignBarcodeToProduct(productId: string, newBarcode: string): Producto | null {
+    const productos = this.getProductos();
+    const idx = productos.findIndex(p => p.id === productId);
+    if (idx >= 0) {
+      productos[idx] = {
+        ...productos[idx],
+        codigo_barras: newBarcode.trim(),
+      };
+      this.setStorage(STORAGE_KEYS.PRODUCTOS, productos);
+      cloudSync.enqueueProducto(productos[idx]);
+      return productos[idx];
+    }
+    return null;
+  }
+
+  importProductos(
+    nuevos: Producto[], 
+    stockMode: 'replace' | 'sum' = 'replace'
+  ): { creados: number; actualizados: number; total: number } {
+    const productos = this.getProductos();
+    let creados = 0;
+    let actualizados = 0;
+    const itemsToEnqueue: Producto[] = [];
+
+    // Mapeo rápido para búsqueda de existentes
+    const barcodeMap = new Map<string, number>();
+    const nameMap = new Map<string, number>();
+
+    productos.forEach((p, idx) => {
+      if (p.codigo_barras) {
+        barcodeMap.set(p.codigo_barras.trim().toLowerCase(), idx);
+      }
+      if (p.nombre) {
+        nameMap.set(p.nombre.trim().toLowerCase(), idx);
+      }
+    });
+
+    nuevos.forEach((nuevo) => {
+      const cleanBarcode = (nuevo.codigo_barras || '').trim().toLowerCase();
+      const cleanName = (nuevo.nombre || '').trim().toLowerCase();
+
+      let existingIdx = -1;
+      if (cleanBarcode && barcodeMap.has(cleanBarcode)) {
+        existingIdx = barcodeMap.get(cleanBarcode)!;
+      } else if (cleanName && nameMap.has(cleanName)) {
+        existingIdx = nameMap.get(cleanName)!;
+      } else {
+        existingIdx = productos.findIndex(p => p.id === nuevo.id);
+      }
+
+      if (existingIdx >= 0) {
+        const existing = productos[existingIdx];
+        const updatedStock = stockMode === 'sum' 
+          ? (existing.stock_actual || 0) + (nuevo.stock_actual || 0)
+          : (nuevo.stock_actual !== undefined ? nuevo.stock_actual : existing.stock_actual);
+
+        productos[existingIdx] = {
+          ...existing,
+          codigo_barras: nuevo.codigo_barras || existing.codigo_barras,
+          nombre: nuevo.nombre || existing.nombre,
+          categoria: nuevo.categoria || existing.categoria,
+          precio_venta: nuevo.precio_venta > 0 ? nuevo.precio_venta : existing.precio_venta,
+          precio_costo: nuevo.precio_costo > 0 ? nuevo.precio_costo : existing.precio_costo,
+          stock_actual: Math.max(0, updatedStock),
+          stock_minimo: nuevo.stock_minimo !== undefined ? nuevo.stock_minimo : existing.stock_minimo,
+          unidad_medida: nuevo.unidad_medida || existing.unidad_medida,
+          marca: nuevo.marca || existing.marca,
+        };
+        itemsToEnqueue.push(productos[existingIdx]);
+        actualizados++;
+      } else {
+        const finalNew: Producto = {
+          id: nuevo.id || `prod-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          codigo_barras: nuevo.codigo_barras || '',
+          nombre: nuevo.nombre,
+          categoria: nuevo.categoria || 'Varios',
+          precio_venta: nuevo.precio_venta || 0,
+          precio_costo: nuevo.precio_costo || 0,
+          stock_actual: Math.max(0, nuevo.stock_actual || 0),
+          stock_minimo: nuevo.stock_minimo !== undefined ? nuevo.stock_minimo : 5,
+          unidad_medida: nuevo.unidad_medida || 'unidad',
+          es_frecuente: nuevo.es_frecuente !== undefined ? nuevo.es_frecuente : true,
+          color_tag: nuevo.color_tag || '#3B82F6',
+          marca: nuevo.marca || '',
+        };
+        productos.unshift(finalNew);
+        // Actualizar mapeos para evitar duplicación dentro del mismo lote importado
+        if (finalNew.codigo_barras) {
+          barcodeMap.set(finalNew.codigo_barras.trim().toLowerCase(), 0);
+        }
+        if (finalNew.nombre) {
+          nameMap.set(finalNew.nombre.trim().toLowerCase(), 0);
+        }
+        itemsToEnqueue.push(finalNew);
+        creados++;
+      }
+    });
+
+    this.setStorage(STORAGE_KEYS.PRODUCTOS, productos);
+    cloudSync.enqueueProductos(itemsToEnqueue);
+
+    return { creados, actualizados, total: nuevos.length };
   }
 
   // --- ENTRADA DE MERCANCÍA / COMPRAS PROVEEDORES ---
@@ -193,6 +300,50 @@ class LocalDBService {
       clientes.unshift(cliente);
     }
     this.setStorage(STORAGE_KEYS.CLIENTES, clientes);
+    cloudSync.enqueueCliente(cliente);
+  }
+
+  importClientes(nuevos: Cliente[]): { creados: number; actualizados: number; total: number } {
+    const clientes = this.getClientes();
+    let creados = 0;
+    let actualizados = 0;
+
+    nuevos.forEach((nuevo) => {
+      // Normalizar nombre y teléfono para buscar duplicados
+      const cleanNuevoTel = (nuevo.telefono || '').replace(/\D/g, '');
+      const cleanNuevoNom = (nuevo.nombre || '').trim().toLowerCase();
+
+      const existingIdx = clientes.findIndex((c) => {
+        if (c.id === nuevo.id) return true;
+        const cNom = (c.nombre || '').trim().toLowerCase();
+        if (cNom && cNom === cleanNuevoNom) return true;
+        const cTel = (c.telefono || '').replace(/\D/g, '');
+        if (cleanNuevoTel && cTel && cleanNuevoTel.length >= 7 && cTel === cleanNuevoTel) return true;
+        return false;
+      });
+
+      if (existingIdx >= 0) {
+        // Actualizar cliente existente
+        clientes[existingIdx] = {
+          ...clientes[existingIdx],
+          telefono: nuevo.telefono || clientes[existingIdx].telefono,
+          limite_credito: nuevo.limite_credito > 0 ? nuevo.limite_credito : clientes[existingIdx].limite_credito,
+          saldo_actual: nuevo.saldo_actual !== undefined ? nuevo.saldo_actual : clientes[existingIdx].saldo_actual,
+          direccion_nota: nuevo.direccion_nota || clientes[existingIdx].direccion_nota,
+          ultimo_movimiento: nuevo.ultimo_movimiento || clientes[existingIdx].ultimo_movimiento,
+        };
+        cloudSync.enqueueCliente(clientes[existingIdx]);
+        actualizados++;
+      } else {
+        // Insertar nuevo cliente
+        clientes.unshift(nuevo);
+        cloudSync.enqueueCliente(nuevo);
+        creados++;
+      }
+    });
+
+    this.setStorage(STORAGE_KEYS.CLIENTES, clientes);
+    return { creados, actualizados, total: nuevos.length };
   }
 
   deleteCliente(id: string): void {
@@ -213,6 +364,7 @@ class LocalDBService {
     cliente.ultimo_movimiento = new Date().toISOString().split('T')[0];
     clientes[clienteIdx] = cliente;
     this.setStorage(STORAGE_KEYS.CLIENTES, clientes);
+    cloudSync.enqueueCliente(cliente);
 
     // Registrar en movimientos de caja (Entra efectivo a la pulpería)
     const now = new Date();
@@ -301,6 +453,7 @@ class LocalDBService {
     const ventas = this.getVentas();
     ventas.unshift(nuevaVenta);
     this.setStorage(STORAGE_KEYS.VENTAS, ventas);
+    cloudSync.enqueueVenta(nuevaVenta);
 
     // 2. DESCUENTO AUTOMÁTICO EN TIEMPO REAL DE STOCK
     const productos = this.getProductos();

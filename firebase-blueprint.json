@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "Venta": {
+      "description": "Registro de ventas de contado o fiadas",
+      "properties": {
+        "id": { "type": "string" },
+        "fecha_hora": { "type": "string" },
+        "tipo": { "type": "string" },
+        "cliente_id": { "type": "string" },
+        "cliente_nombre": { "type": "string" },
+        "total": { "type": "number" },
+        "pago_con": { "type": "number" },
+        "vuelto": { "type": "number" },
+        "items": { "type": "array" },
+        "ganancia_estimada": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Cliente": {
+      "description": "Clientes de la pulpería y libreta de fiados",
+      "properties": {
+        "id": { "type": "string" },
+        "nombre": { "type": "string" },
+        "telefono": { "type": "string" },
+        "limite_credito": { "type": "number" },
+        "saldo_actual": { "type": "number" },
+        "direccion_nota": { "type": "string" },
+        "fecha_registro": { "type": "string" },
+        "ultimo_movimiento": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "Producto": {
+      "description": "Catálogo e inventario de productos de la pulpería",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo_barras": { "type": "string" },
+        "nombre": { "type": "string" },
+        "categoria": { "type": "string" },
+        "precio_venta": { "type": "number" },
+        "precio_costo": { "type": "number" },
+        "stock_actual": { "type": "number" },
+        "stock_minimo": { "type": "number" },
+        "unidad_medida": { "type": "string" },
+        "es_frecuente": { "type": "boolean" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "AbonoFiado": {
+      "description": "Pagos o abonos a deudas de clientes fiadores",
+      "properties": {
+        "id": { "type": "string" },
+        "cliente_id": { "type": "string" },
+        "cliente_nombre": { "type": "string" },
+        "monto": { "type": "number" },
+        "fecha_hora": { "type": "string" },
+        "nota": { "type": "string" }
+      }
+    }
+  }
+}

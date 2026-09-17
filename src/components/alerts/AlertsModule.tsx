@@ -9,11 +9,14 @@ import {
   RefreshCw, 
   TrendingDown, 
   PackageCheck,
-  CheckCheck
+  CheckCheck,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Producto, ConfiguracionPulperia } from '../../types';
 import { db } from '../../services/db';
 import { audioSpeech } from '../../services/audioSpeech';
+import { exportInventoryToExcel, exportInventoryAndAlertsToCSV } from '../../utils/excelExport';
 
 interface AlertsModuleProps {
   productos: Producto[];
@@ -98,6 +101,30 @@ export const AlertsModule: React.FC<AlertsModuleProps> = ({
     onRefresh();
   };
 
+  const handleExportAlertsExcel = () => {
+    exportInventoryToExcel(productos, config, 'alertas');
+    if (audioEnabled) {
+      audioSpeech.playSuccessSound();
+      audioSpeech.speak('Alertas de stock exportadas a libro de Excel');
+    }
+  };
+
+  const handleExportAlertsCSV = () => {
+    exportInventoryAndAlertsToCSV(productos, config, 'alertas');
+    if (audioEnabled) {
+      audioSpeech.playSuccessSound();
+      audioSpeech.speak('Alertas de stock exportadas a archivo CSV');
+    }
+  };
+
+  const handleExportAllCSV = () => {
+    exportInventoryAndAlertsToCSV(productos, config, 'todos');
+    if (audioEnabled) {
+      audioSpeech.playSuccessSound();
+      audioSpeech.speak('Inventario completo exportado a archivo CSV');
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Top Banner Overview */}
@@ -116,24 +143,34 @@ export const AlertsModule: React.FC<AlertsModuleProps> = ({
           </p>
         </div>
 
-        {/* Resumen de Alertas */}
-        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-          <div className="bg-rose-50 border border-rose-200 px-3.5 py-2 rounded-xl text-center">
+        {/* Resumen de Alertas y Botón de Exportación */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
+          <div className="bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl text-center">
             <span className="text-[10px] text-rose-700 font-bold uppercase block">Agotados</span>
-            <span className="text-lg font-black text-rose-700 font-mono">{outOfStockProducts.length}</span>
+            <span className="text-base font-black text-rose-700 font-mono">{outOfStockProducts.length}</span>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 px-3.5 py-2 rounded-xl text-center">
+          <div className="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl text-center">
             <span className="text-[10px] text-amber-800 font-bold uppercase block">Por Agotarse</span>
-            <span className="text-lg font-black text-amber-800 font-mono">{warningProducts.length}</span>
+            <span className="text-base font-black text-amber-800 font-mono">{warningProducts.length}</span>
           </div>
 
-          <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-xl text-center">
+          <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-center">
             <span className="text-[10px] text-emerald-800 font-bold uppercase block">Inversión Sugerida</span>
-            <span className="text-lg font-black text-emerald-800 font-mono">
+            <span className="text-base font-black text-emerald-800 font-mono">
               {config.moneda_simbolo}{totalEstimatedCost.toFixed(0)}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={handleExportAlertsExcel}
+            title="Exportar productos con alertas de stock a un libro de Excel (.xls) con diseño y colores"
+            className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all select-none cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Exportar a Excel</span>
+          </button>
         </div>
       </div>
 
@@ -236,17 +273,36 @@ export const AlertsModule: React.FC<AlertsModuleProps> = ({
                 <ShoppingCart className="w-5 h-5 text-emerald-600" />
                 <h3 className="font-extrabold text-slate-900 text-base">Lista de Reposición</h3>
               </div>
-              <button
-                onClick={handleCopyOrder}
-                className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all ${
-                  copied
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                }`}
-              >
-                {copied ? <CheckCheck className="w-4 h-4" /> : <Copy className="w-4 h-4 text-emerald-600" />}
-                <span>{copied ? '¡Copiado!' : 'Copiar para WhatsApp'}</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleExportAlertsExcel}
+                  title="Descargar lista de reposición en archivo de Excel (.xls)"
+                  className="px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Excel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportAlertsCSV}
+                  title="Descargar lista de reposición en archivo CSV"
+                  className="px-2 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 cursor-pointer"
+                >
+                  <span>CSV</span>
+                </button>
+                <button
+                  onClick={handleCopyOrder}
+                  className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                    copied
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  {copied ? <CheckCheck className="w-4 h-4" /> : <Copy className="w-4 h-4 text-emerald-600" />}
+                  <span>{copied ? '¡Copiado!' : 'WhatsApp'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Listado de Productos Sugeridos */}

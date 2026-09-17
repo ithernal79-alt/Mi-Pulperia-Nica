@@ -9,11 +9,14 @@ import {
   AlertTriangle, 
   Settings,
   Store,
-  FileCode2
+  FileCode2,
+  Cloud,
+  RefreshCw
 } from 'lucide-react';
 import { ConfiguracionPulperia } from '../../types';
 import { db } from '../../services/db';
 import { audioSpeech } from '../../services/audioSpeech';
+import { cloudSync } from '../../services/cloudSync';
 
 interface BackupModalProps {
   config: ConfiguracionPulperia;
@@ -30,9 +33,30 @@ export const BackupModal: React.FC<BackupModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'backup' | 'config'>('backup');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [cloudStatus, setCloudStatus] = useState<string | null>(null);
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
 
   // Formulario de Configuración
   const [configForm, setConfigForm] = useState<ConfiguracionPulperia>({ ...config });
+
+  // Respaldo completo en la nube Firebase
+  const handleCloudBackupAll = async () => {
+    setIsCloudSyncing(true);
+    setCloudStatus('Subiendo catálogo, ventas y fiados a Firebase Cloud...');
+    try {
+      const res = await cloudSync.backupEntireDatabase(
+        db.getVentas(),
+        db.getClientes(),
+        db.getProductos()
+      );
+      setCloudStatus(res.message);
+      if (res.success && audioEnabled) audioSpeech.playSuccessSound();
+    } catch (e: any) {
+      setCloudStatus(`Error: ${e.message || 'Fallo de conexión'}`);
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
 
   // Descargar Respaldo JSON / SQLite
   const handleExport = () => {
@@ -144,6 +168,44 @@ export const BackupModal: React.FC<BackupModalProps> = ({
               <p className="text-slate-600 text-xs leading-relaxed">
                 Toda la información de productos, clientes, ventas, abonos y movimientos de caja se almacena de forma local e instantánea sin depender de internet.
               </p>
+            </div>
+
+            {/* Sincronización y Respaldo en la Nube Firebase */}
+            <div className="p-3.5 bg-blue-50/70 rounded-2xl border border-blue-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-blue-950 flex items-center gap-1.5">
+                  <Cloud className="w-4 h-4 text-blue-600" />
+                  <span>Sincronización en la Nube (Google Firebase)</span>
+                </p>
+                <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                  Automático con Wi-Fi
+                </span>
+              </div>
+              <p className="text-slate-600 text-xs leading-relaxed">
+                Tus ventas y fiados se guardan primero en tu celular y se sincronizan a la nube automáticamente cuando hay conexión a internet.
+              </p>
+              <button
+                type="button"
+                onClick={handleCloudBackupAll}
+                disabled={isCloudSyncing}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold flex items-center justify-center gap-2 shadow-xs transition-all disabled:opacity-50"
+              >
+                {isCloudSyncing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Cloud className="w-4 h-4 text-white" />
+                )}
+                <span>
+                  {isCloudSyncing
+                    ? 'Subiendo a la nube...'
+                    : 'Subir Respaldo Completo a la Nube Ahora'}
+                </span>
+              </button>
+              {cloudStatus && (
+                <p className="text-xs font-semibold text-blue-800 text-center mt-1">
+                  {cloudStatus}
+                </p>
+              )}
             </div>
 
             {/* Exportar */}

@@ -3,7 +3,7 @@ import {
   Package, 
   Plus, 
   Search, 
-  Truck, 
+  Upload, 
   Edit, 
   Trash2, 
   AlertTriangle, 
@@ -18,14 +18,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Camera,
-  Mic
+  Mic,
+  FileSpreadsheet,
+  Download,
+  ChevronDown
 } from 'lucide-react';
-import { Producto, EntradaMercancia, ConfiguracionPulperia } from '../../types';
+import { Producto, ConfiguracionPulperia } from '../../types';
 import { db } from '../../services/db';
 import { audioSpeech } from '../../services/audioSpeech';
 import { LISTA_CATEGORIAS, CATEGORIA_COLORS, CATEGORIA_EMOJIS } from '../../data/listaProductos';
 import { CameraBarcodeScanner } from '../common/CameraBarcodeScanner';
 import { InventoryVoiceModal } from './InventoryVoiceModal';
+import { ImportInventoryModal } from './ImportInventoryModal';
+import { exportInventoryToExcel, exportInventoryAndAlertsToCSV } from '../../utils/excelExport';
 
 interface InventoryModuleProps {
   productos: Producto[];
@@ -45,12 +50,43 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(initialCategory || 'Todos');
   const [showNewProductModal, setShowNewProductModal] = useState(false);
-  const [showEntradaModal, setShowEntradaModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+
+  const totalAlertasCount = useMemo(() => {
+    return productos.filter((p) => p.stock_actual <= p.stock_minimo).length;
+  }, [productos]);
+
+  const handleExportExcel = (mode: 'todos' | 'alertas' = 'todos') => {
+    exportInventoryToExcel(productos, config, mode);
+    setShowExportDropdown(false);
+    if (audioEnabled) {
+      audioSpeech.playSuccessSound();
+      audioSpeech.speak(
+        mode === 'alertas'
+          ? 'Alertas de stock exportadas a libro de Excel'
+          : 'Lista completa de inventario exportada a libro de Excel'
+      );
+    }
+  };
+
+  const handleExportCSV = (mode: 'todos' | 'alertas') => {
+    exportInventoryAndAlertsToCSV(productos, config, mode);
+    setShowExportDropdown(false);
+    if (audioEnabled) {
+      audioSpeech.playSuccessSound();
+      audioSpeech.speak(
+        mode === 'alertas'
+          ? 'Alertas de stock exportadas a archivo CSV'
+          : 'Inventario completo exportado a archivo CSV'
+      );
+    }
+  };
 
   useEffect(() => {
     if (initialCategory) {
@@ -58,16 +94,6 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
       setCurrentPage(1);
     }
   }, [initialCategory]);
-
-  // Formulario de Entrada de Mercancía / Factura de Proveedor
-  const [entradaForm, setEntradaForm] = useState({
-    proveedor: '',
-    numero_factura: '',
-    producto_id: '',
-    cantidad_ingresada: 1,
-    costo_unitario: 0,
-    nota: '',
-  });
 
   // Formulario de Nuevo / Editar Producto
   const [productForm, setProductForm] = useState<Partial<Producto>>({
@@ -250,45 +276,6 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
     onRefresh();
   };
 
-  // Guardar entrada de mercancía (factura proveedor)
-  const handleSaveEntrada = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!entradaForm.producto_id || entradaForm.cantidad_ingresada <= 0) {
-      alert('Por favor seleccione un producto y especifique la cantidad ingresada');
-      return;
-    }
-
-    const prod = productos.find(p => p.id === entradaForm.producto_id);
-    if (!prod) return;
-
-    db.registrarEntradaMercancia({
-      proveedor: entradaForm.proveedor || 'Proveedor General',
-      numero_factura: entradaForm.numero_factura || `FAC-${Date.now().toString().slice(-4)}`,
-      producto_id: prod.id,
-      producto_nombre: prod.nombre,
-      cantidad_ingresada: Number(entradaForm.cantidad_ingresada),
-      costo_unitario: Number(entradaForm.costo_unitario) || prod.precio_costo,
-      total_costo: Number(entradaForm.cantidad_ingresada) * (Number(entradaForm.costo_unitario) || prod.precio_costo),
-      nota: entradaForm.nota,
-    });
-
-    if (audioEnabled) {
-      audioSpeech.playSuccessSound();
-      audioSpeech.speak(`Mercancía ingresada. Stock de ${prod.nombre} actualizado`);
-    }
-
-    setShowEntradaModal(false);
-    setEntradaForm({
-      proveedor: '',
-      numero_factura: '',
-      producto_id: '',
-      cantidad_ingresada: 1,
-      costo_unitario: 0,
-      nota: '',
-    });
-    onRefresh();
-  };
-
   return (
     <div className="space-y-4">
       {/* Top Header Controls */}
@@ -299,7 +286,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
             <span>Módulo de Inventario & Existencias</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Control de existencias con descuento automático por venta y entrada de facturas de proveedores
+            Control de existencias con descuento automático por venta e importación masiva de productos
           </p>
         </div>
 
@@ -327,13 +314,15 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
             <span>Dictar por Voz</span>
           </button>
 
-          {/* Botón Entrada de Mercancía */}
+          {/* Botón Importar Lista de Inventario */}
           <button
-            onClick={() => setShowEntradaModal(true)}
-            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all select-none"
+            type="button"
+            onClick={() => setShowImportModal(true)}
+            title="Importar catálogo y existencias de productos desde Excel (.xlsx, .xls) o CSV"
+            className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all select-none cursor-pointer"
           >
-            <Truck className="w-4 h-4" />
-            <span>Entrada Factura</span>
+            <Upload className="w-4 h-4" />
+            <span>Importar Inventario</span>
           </button>
 
           {/* Botón Nuevo Producto */}
@@ -344,6 +333,98 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
             <Plus className="w-4 h-4" />
             <span>Nuevo Producto</span>
           </button>
+
+          {/* Botón Exportar a Excel (Inventario Completo y Alertas) */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowExportDropdown(!showExportDropdown)}
+              title="Descargar lista completa del inventario en formato de Microsoft Excel / LibreOffice Calc"
+              className="px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-bold text-xs flex items-center justify-center gap-1.5 transition-all select-none border border-emerald-300 shadow-xs cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+              <span>Exportar a Excel</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-emerald-700 transition-transform ${showExportDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            {showExportDropdown && (
+              <>
+                <div 
+                  className="fixed inset-0 z-30" 
+                  onClick={() => setShowExportDropdown(false)} 
+                />
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-40 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                      Exportación de Inventario
+                    </p>
+                    <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
+                      Excel / Calc
+                    </span>
+                  </div>
+
+                  {/* Opción 1: Excel Completo (Recomendado) */}
+                  <button
+                    type="button"
+                    onClick={() => handleExportExcel('todos')}
+                    className="w-full px-3.5 py-2.5 text-left hover:bg-emerald-50/70 flex items-start gap-2.5 transition-colors cursor-pointer group"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-bold text-slate-800">
+                          Inventario Completo en Excel (.xls)
+                        </p>
+                        <span className="text-[9px] bg-emerald-600 text-white font-bold px-1 rounded">
+                          Recomendado
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Libro con {productos.length} artículos, hoja de Alertas y Reposición, valoración en C$ y márgenes
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Opción 2: Solo Alertas a Excel */}
+                  <button
+                    type="button"
+                    onClick={() => handleExportExcel('alertas')}
+                    className="w-full px-3.5 py-2.5 text-left hover:bg-amber-50/70 flex items-start gap-2.5 transition-colors cursor-pointer group border-t border-slate-100"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>Solo Alertas a Excel (.xls)</span>
+                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold font-mono">
+                          {totalAlertasCount}
+                        </span>
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Hoja de compra y reposición con artículos agotados o críticos
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Opción 3: Formato CSV */}
+                  <button
+                    type="button"
+                    onClick={() => handleExportCSV('todos')}
+                    className="w-full px-3.5 py-2 text-left hover:bg-slate-50 flex items-start gap-2.5 transition-colors cursor-pointer group border-t border-slate-100"
+                  >
+                    <Download className="w-4 h-4 text-slate-500 mt-0.5 shrink-0 group-hover:scale-110 transition-transform" />
+                    <div>
+                      <p className="text-xs font-medium text-slate-700">
+                        Exportar en archivo CSV plano (.csv)
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        Texto delimitado por punto y coma (UTF-8 con BOM)
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Botón Restaurar Catálogo Base */}
           <button
@@ -646,136 +727,17 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
       </div>
 
       {/* ========================================================
-          MODAL: ENTRADA DE MERCANCÍA / FACTURA DE PROVEEDOR
+          MODAL: IMPORTAR LISTA DE INVENTARIO (EXCEL / CSV)
       ======================================================== */}
-      {showEntradaModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-5 sm:p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-              <h3 className="font-extrabold text-base sm:text-lg text-slate-900 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-blue-600" />
-                <span>Registrar Entrada de Mercancía</span>
-              </h3>
-              <button 
-                onClick={() => setShowEntradaModal(false)}
-                className="text-slate-500 hover:text-slate-800 text-xs font-bold px-2 py-1 bg-slate-100 rounded-lg"
-              >
-                Cerrar
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEntrada} className="space-y-3 text-xs sm:text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Proveedor / Distribuidor:</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej. Distribuidora Sula, Cervecería..."
-                    value={entradaForm.proveedor}
-                    onChange={(e) => setEntradaForm({ ...entradaForm, proveedor: e.target.value })}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-blue-500 shadow-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">No. de Factura / Boleta:</label>
-                  <input
-                    type="text"
-                    placeholder="Ej. FAC-9842"
-                    value={entradaForm.numero_factura}
-                    onChange={(e) => setEntradaForm({ ...entradaForm, numero_factura: e.target.value })}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-blue-500 shadow-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-semibold mb-1">Seleccionar Producto a Surtir:</label>
-                <select
-                  required
-                  value={entradaForm.producto_id}
-                  onChange={(e) => {
-                    const sel = productos.find(p => p.id === e.target.value);
-                    setEntradaForm({
-                      ...entradaForm,
-                      producto_id: e.target.value,
-                      costo_unitario: sel ? sel.precio_costo : 0,
-                    });
-                  }}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 outline-none focus:border-blue-500 shadow-xs"
-                >
-                  <option value="">-- Seleccionar producto del inventario --</option>
-                  {productos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre} (Stock actual: {p.stock_actual} {p.unidad_medida}s)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Cantidad Ingresada (+ unidades):</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    placeholder="1"
-                    value={entradaForm.cantidad_ingresada === 0 ? '' : entradaForm.cantidad_ingresada}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEntradaForm({ 
-                        ...entradaForm, 
-                        cantidad_ingresada: val === '' ? 0 : parseFloat(val) || 0 
-                      });
-                    }}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-bold outline-none focus:border-blue-500 shadow-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-1">Costo Unitario de Compra:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    value={entradaForm.costo_unitario === 0 ? '' : entradaForm.costo_unitario}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEntradaForm({ 
-                        ...entradaForm, 
-                        costo_unitario: val === '' ? 0 : parseFloat(val) || 0 
-                      });
-                    }}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-900 font-mono font-bold outline-none focus:border-blue-500 shadow-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-1">
-                <div className="flex justify-between">
-                  <span>Total inversión de compra:</span>
-                  <span className="font-bold font-mono">
-                    {config.moneda_simbolo} {(entradaForm.cantidad_ingresada * entradaForm.costo_unitario).toFixed(2)}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600">
-                  ℹ️ Esta acción sumará automáticamente las unidades al stock local y actualizará el costo unitario del producto.
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold text-white shadow-xs flex items-center justify-center gap-2 transition-all"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>GUARDAR ENTRADA Y SUMAR A STOCK</span>
-              </button>
-            </form>
-          </div>
-        </div>
+      {showImportModal && (
+        <ImportInventoryModal
+          existingProductos={productos}
+          config={config}
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onSuccess={() => onRefresh()}
+          audioEnabled={audioEnabled}
+        />
       )}
 
       {/* ========================================================
@@ -957,10 +919,12 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
         isOpen={showCameraScanner}
         onClose={() => setShowCameraScanner(false)}
         productos={productos}
+        mode="inventory"
         onProductScanned={handleCameraProductScanned}
         onNewBarcodeScanned={handleCameraNewBarcodeScanned}
+        onBarcodeLinked={() => onRefresh()}
         title="Escanear Código de Barras de Producto"
-        subtitle="Apunta la cámara al producto. Si ya existe, puedes sumar stock; si es nuevo, se agregará al catálogo."
+        subtitle="Apunta la cámara al producto. Si ya existe, puedes sumar stock; si es nuevo, vincúlalo o regístralo."
       />
 
       {/* Modal de Ingreso Rápido por Voz (Dictado) */}
@@ -968,7 +932,7 @@ export const InventoryModule: React.FC<InventoryModuleProps> = ({
         isOpen={showVoiceModal}
         onClose={() => setShowVoiceModal(false)}
         productos={productos}
-        onSuccess={onRefresh}
+        onRefresh={onRefresh}
         onOpenNewProductWithData={handleVoiceOpenNewProductWithData}
       />
 
